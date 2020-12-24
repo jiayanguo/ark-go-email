@@ -19,6 +19,8 @@ docker run -p 9000:8080 ark-go-email:latest
 ### Test it locally
 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
 
+### Push to ecr
+Follow this post to push it to ecr: https://dev.to/jiayanguo/another-milestone-of-aws-lambda-45f3
 
 ### Troube shooting.
 1. Error 400: redirect_uri_mismatch
