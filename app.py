@@ -26,33 +26,10 @@ SENDER = "noreply@arkfly.com"
 TOKEN_FILE = "/tmp/token.pickle"
 
 def main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open(TOKEN_FILE, 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('gmail', 'v1', credentials=creds)
-    
-    result = get_messages(service, 'me')
-    if 'messages' in result:
-      try:
+    try:
+      service = login()
+      result = get_messages(service, 'me')
+      if 'messages' in result:
         messageId = result['messages'][0]['id']
         print(messageId)
         data = get_message('me', messageId, service)
@@ -65,13 +42,34 @@ def main():
         # with open(fileName, 'wb') as temp_file:
         #   temp_file.write(response.content)
         upload_to_s3(io.BytesIO(response.content), OBJECT_KEY_PATTERN.format(today=today))
-      except Exception as error:
+      else:
+        print("No message found!")
+    except Exception as error:
         # TODO Sender is not set correctly
         print("ARK Fly processing failed " + str(error))
         message = create_message(SENDER, SEND_NOTIFICATION_TO, "ARK Fly processing failed", str(error))
         send_message(service, 'me', message)
-    else:
-      print("No message found!")
+def login():
+  creds = None
+  # The file token.pickle stores the user's access and refresh tokens, and is
+  # created automatically when the authorization flow completes for the first
+  # time.
+  if os.path.exists(TOKEN_FILE):
+      with open(TOKEN_FILE, 'rb') as token:
+          creds = pickle.load(token)
+  # If there are no (valid) credentials available, let the user log in.
+  if not creds or not creds.valid:
+      if creds and creds.expired and creds.refresh_token:
+          creds.refresh(Request())
+      else:
+          flow = InstalledAppFlow.from_client_secrets_file(
+              'credentials.json', SCOPES)
+          creds = flow.run_local_server(port=0)
+      # Save the credentials for the next run
+      with open(TOKEN_FILE, 'wb') as token:
+          pickle.dump(creds, token)
+
+  return build('gmail', 'v1', credentials=creds)
 
 def upload_to_s3(content, object_name):
   client = boto3.client('s3')
@@ -129,8 +127,8 @@ def get_messages(service, user_id):
     raise error
 
 # For local test
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
 
 def lambda_handler(event, context):
   main()
