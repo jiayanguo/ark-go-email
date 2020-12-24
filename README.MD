@@ -4,6 +4,16 @@ https://blog.mailtrap.io/send-emails-with-gmail-api/#Step_9_Read_a_specific_emai
 ### Install Libraries
 pip install -r requirements.txt
 
+### Get credentials_out.json
+python getCredential.py
+
+### Create a env.var (for local test only), these values can be found in the credentials_out.json.
+```
+GMAIL_CLIENT_ID=<client_id>
+GMAIL_CLIENT_SECRET=<client_secret>
+GMAIL_REFRESH_TOKEN=<refresh_token>
+```
+
 ### Google Gmail API
 https://developers.google.com/gmail/api/reference/rest/v1/users.messages#Message.MessagePart
 
@@ -14,7 +24,7 @@ https://ark-funds.com/investor-resources?utm_medium=email&_hsmi=66214954&_hsenc=
 docker build . -t ark-go-email
 
 ### Run it locally
-docker run -p 9000:8080 ark-go-email:latest
+docker run -p 9000:8080  --env-file env.var ark-go-email:latest
 
 ### Test it locally
 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
@@ -36,3 +46,6 @@ The redirect URI in the request, http://localhost:49619/, does not match the one
 
 Edit the credential to add an authorised redirect URIs.
 ![add redirect URI](image/redirect-url-issue.png)
+
+### Reference
+https://medium.com/@nakulkurane/sending-gmail-on-aws-lambda-via-python-a7fa991a97f1

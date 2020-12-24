@@ -1,3 +1,5 @@
 *.xls
 token.pickle
-credentials.json
+credentials*.json
+client_secret.json
+env.var

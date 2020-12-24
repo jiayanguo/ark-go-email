@@ -1,7 +1,6 @@
 from __future__ import print_function
-import pickle
-import os.path
-from googleapiclient.discovery import build
+import os
+from googleapiclient import errors, discovery
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from email.mime.text import MIMEText
@@ -12,8 +11,12 @@ from datetime import date
 from pytz import timezone
 import boto3
 import io
+from oauth2client import client, tools, file
+import httplib2
 
-# Validate the date of the email.
+# TODO 
+# 1. Validate the date of the email.
+# 2. Delete email after process
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://mail.google.com/']
@@ -26,8 +29,8 @@ SENDER = "noreply@arkfly.com"
 TOKEN_FILE = "/tmp/token.pickle"
 
 def main():
+    service = login()
     try:
-      service = login()
       result = get_messages(service, 'me')
       if 'messages' in result:
         messageId = result['messages'][0]['id']
@@ -49,26 +52,27 @@ def main():
         message = create_message(SENDER, SEND_NOTIFICATION_TO, "ARK Fly processing failed", str(error))
         send_message(service, 'me', message)
 def login():
-  creds = None
-  # The file token.pickle stores the user's access and refresh tokens, and is
-  # created automatically when the authorization flow completes for the first
-  # time.
-  if os.path.exists(TOKEN_FILE):
-      with open(TOKEN_FILE, 'rb') as token:
-          creds = pickle.load(token)
-  # If there are no (valid) credentials available, let the user log in.
-  if not creds or not creds.valid:
-      if creds and creds.expired and creds.refresh_token:
-          creds.refresh(Request())
-      else:
-          flow = InstalledAppFlow.from_client_secrets_file(
-              'credentials.json', SCOPES)
-          creds = flow.run_local_server(port=0)
-      # Save the credentials for the next run
-      with open(TOKEN_FILE, 'wb') as token:
-          pickle.dump(creds, token)
+  try:
+    credentials = get_credentials()
+    http = credentials.authorize(httplib2.Http())
+    return discovery.build('gmail', 'v1', http=http, cache_discovery=False)
+  except Exception as error:
+    print("Log into gmail failed!" + str(error))
+    raise error
 
-  return build('gmail', 'v1', credentials=creds)
+def get_credentials():
+  client_id = os.environ['GMAIL_CLIENT_ID']
+  client_secret = os.environ['GMAIL_CLIENT_SECRET']
+  refresh_token = os.environ['GMAIL_REFRESH_TOKEN']
+  credentials = client.GoogleCredentials(None, 
+  client_id, 
+  client_secret,
+  refresh_token,
+  None,
+  "https://accounts.google.com/o/oauth2/token",
+  'my-user-agent')
+
+  return credentials
 
 def upload_to_s3(content, object_name):
   client = boto3.client('s3')
@@ -115,7 +119,7 @@ def send_message(service, user_id, message):
     print('Message Id: %s' % message['id'])
     return message
   except Exception as error:
-    print('An error occurred: %s' % e)
+    print('An error occurred: %s' % error)
     raise error
 
 def get_messages(service, user_id):
