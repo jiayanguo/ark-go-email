@@ -27,6 +27,9 @@ aws ecr get-login-password --region us-west-2 | docker login --username AWS --pa
 docker push 120400168286.dkr.ecr.us-west-2.amazonaws.com/ark-go-email:latest
 ```
 
+### Google Developer COnsole:
+https://console.developers.google.com/
+
 ### Troube shooting.
 1. Error 400: redirect_uri_mismatch
 The redirect URI in the request, http://localhost:49619/, does not match the ones authorized for the OAuth client. To update the authorized redirect URIs, visit: https://console.developers.google.com/apis/credentials/oauthclient/${your_client_id}?project=${your_project_number}

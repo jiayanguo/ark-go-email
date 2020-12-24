@@ -31,7 +31,6 @@ def main():
       result = get_messages(service, 'me')
       if 'messages' in result:
         messageId = result['messages'][0]['id']
-        print(messageId)
         data = get_message('me', messageId, service)
         url = get_execel_url(data);
         # TODO fake url
