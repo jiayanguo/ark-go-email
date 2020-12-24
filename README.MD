@@ -21,6 +21,11 @@ curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d
 
 ### Push to ecr
 Follow this post to push it to ecr: https://dev.to/jiayanguo/another-milestone-of-aws-lambda-45f3
+```
+docker tag ark-go-email:latest 120400168286.dkr.ecr.us-west-2.amazonaws.com/ark-go-email:latest
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 120400168286.dkr.ecr.us-west-2.amazonaws.com
+docker push 120400168286.dkr.ecr.us-west-2.amazonaws.com/ark-go-email:latest
+```
 
 ### Troube shooting.
 1. Error 400: redirect_uri_mismatch
