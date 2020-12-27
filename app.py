@@ -21,7 +21,7 @@ import csv
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://mail.google.com/']
 # ARK_INVEST_QUERY="from:ark@arkinvest.com subject:ARK Investment Management Trading Information"
-ARK_INVEST_QUERY="from:ark@arkinvest.com subject:ARK Investment Management Trading Information"
+ARK_INVEST_QUERY=os.environ['EMAIL_QUERY']
 S3_BUCKET ="ark-fly"
 OBJECT_KEY_PATTERN="dailytradingtrans/{today}-trading.csv"
 SEND_NOTIFICATION_TO = "guojiayanc@gmail.com"
