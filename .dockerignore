@@ -4,3 +4,4 @@ README.MD
 credentials*
 token.pickle
 env.var
+*.csv

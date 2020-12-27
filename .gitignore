@@ -3,3 +3,4 @@ token.pickle
 credentials*.json
 client_secret.json
 env.var
+*.csv
