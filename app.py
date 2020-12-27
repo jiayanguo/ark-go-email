@@ -29,22 +29,29 @@ SENDER = "noreply@arkfly.com"
 TEMP_TRADING_CSV_FILE="/tmp/trading.csv"
 
 def main():
-    service = login()
-    try:
-      result = get_messages(service, 'me')
-      if 'messages' in result:
-        messageId = result['messages'][0]['id']
-        data = get_message('me', messageId, service)
-        generate_csv(data)
-        today = get_date()
-        upload_to_s3(OBJECT_KEY_PATTERN.format(today=today))
-      else:
-        print("No message found!")
-    except Exception as error:
-        # TODO Sender is not set correctly
-        print("ARK Fly processing failed " + str(error))
-        message = create_message(SENDER, SEND_NOTIFICATION_TO, "ARK Fly processing failed", str(error))
-        send_message(service, 'me', message)
+  service = login()
+  try:
+    result = get_messages(service, 'me')
+    if 'messages' in result:
+      messageId = result['messages'][0]['id']
+      data = get_message('me', messageId, service)
+      generate_csv(data)
+      today = get_date()
+      upload_to_s3(OBJECT_KEY_PATTERN.format(today=today))
+      delete_massage(service, 'me', messageId)
+    else:
+      print("No message found!")
+  except Exception as error:
+    # TODO Sender is not set correctly
+    print("ARK Fly processing failed " + str(error))
+    message = create_message(SENDER, SEND_NOTIFICATION_TO, "ARK Fly processing failed", str(error))
+    send_message(service, 'me', message)
+
+def delete_massage(service, user_id, message_id):
+  try:
+    message = service.users().messages().delete(userId=user_id, id=message_id).execute()
+  except Exception as error:
+    raise error
 
 def login():
   try:
