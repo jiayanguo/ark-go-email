@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 from googleapiclient import errors, discovery
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -10,23 +9,24 @@ import requests
 from datetime import date
 from pytz import timezone
 import boto3
-import io
 from oauth2client import client, tools, file
 import httplib2
+from bs4 import BeautifulSoup
+import csv
 
-# TODO 
+# TODO
 # 1. Validate the date of the email.
 # 2. Delete email after process
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://mail.google.com/']
 # ARK_INVEST_QUERY="from:ark@arkinvest.com subject:ARK Investment Management Trading Information"
-ARK_INVEST_QUERY="from:ark@arkinvest.com"
+ARK_INVEST_QUERY="from:ark@arkinvest.com subject:ARK Investment Management Trading Information"
 S3_BUCKET ="ark-fly"
-OBJECT_KEY_PATTERN="dailytradingtrans/{today}-trading.xls"
+OBJECT_KEY_PATTERN="dailytradingtrans/{today}-trading.csv"
 SEND_NOTIFICATION_TO = "guojiayanc@gmail.com"
 SENDER = "noreply@arkfly.com"
-TOKEN_FILE = "/tmp/token.pickle"
+TEMP_TRADING_CSV_FILE="/tmp/trading.csv"
 
 def main():
     service = login()
@@ -35,15 +35,9 @@ def main():
       if 'messages' in result:
         messageId = result['messages'][0]['id']
         data = get_message('me', messageId, service)
-        url = get_execel_url(data);
-        # TODO fake url
-        url = 'https://u4959697.ct.sendgrid.net/ls/click?upn=zcd6lV4HLKVOGeJ9ek2kSRXRFFQn1rBhvTyMa9aIC2TSfz2mEl5lAXMHUHfvzFMG7YOAWcdjUy4BIT0AMLXXeD-2B-2F8XE5vCf-2Fpdv9Ow71j94Z4w8mquL4MD-2FqTqhLd2suxURj_EeSb0sIe1Poi-2Ft5ye4CtICypLAQEKn7qP-2FXIqL-2F9ZqsULANVnV4NgyKEFNAKDSZ-2Bw7OvmGog7EQFmZ-2BPlZv8v-2Bt1MiaA4kCHw-2BzNNSMbCjMt-2Fj6ctOIGW2yAkK4-2BVlSGmYvYgOgMGiQRTrIqTEwmRAfp89JpUEX5Vr4X9mI3s4a2CACLCNOCS3i5Gfh90Wne42vYxiqfWujgjd6dSoJhsHTPxi-2FAg8sUuYLEdkbtJYU-2BfMwFdqs5zr8puiiiw6VGkPHOdDCgOsUFnpdJkfZFd0ZoNNJto1fX1TOq6s1aRx0-3D'
-        response = requests.get(url)
+        generate_csv(data)
         today = get_date()
-        fileName = today + "-trading.xls"
-        # with open(fileName, 'wb') as temp_file:
-        #   temp_file.write(response.content)
-        upload_to_s3(io.BytesIO(response.content), OBJECT_KEY_PATTERN.format(today=today))
+        upload_to_s3(OBJECT_KEY_PATTERN.format(today=today))
       else:
         print("No message found!")
     except Exception as error:
@@ -51,6 +45,7 @@ def main():
         print("ARK Fly processing failed " + str(error))
         message = create_message(SENDER, SEND_NOTIFICATION_TO, "ARK Fly processing failed", str(error))
         send_message(service, 'me', message)
+
 def login():
   try:
     credentials = get_credentials()
@@ -64,8 +59,9 @@ def get_credentials():
   client_id = os.environ['GMAIL_CLIENT_ID']
   client_secret = os.environ['GMAIL_CLIENT_SECRET']
   refresh_token = os.environ['GMAIL_REFRESH_TOKEN']
-  credentials = client.GoogleCredentials(None, 
-  client_id, 
+
+  credentials = client.GoogleCredentials(None,
+  client_id,
   client_secret,
   refresh_token,
   None,
@@ -74,16 +70,16 @@ def get_credentials():
 
   return credentials
 
-def upload_to_s3(content, object_name):
+def upload_to_s3(object_name):
   client = boto3.client('s3')
   try:
-    response = client.upload_fileobj(content, S3_BUCKET, object_name)
+    response = client.upload_file(TEMP_TRADING_CSV_FILE, S3_BUCKET, object_name)
   except Exception as error:
     raise Exception("faile to upload to s3! " + str(error))
 
 def get_date():
   tz = timezone('EST')
-  today = date.today().strftime("%Y-%m-%d")
+  today = datetime.now(tz).strftime("%Y-%m-%d")
   return today
 
 def get_message(user_id, message_id, service):
@@ -96,12 +92,22 @@ def get_message(user_id, message_id, service):
   except Exception as error:
     raise error
 
-def get_execel_url(data):
-  updateUrl = re.search(r"Update your email preferences \(([^\)]*)\)", data)
-  if updateUrl:
-    return updateUrl.groups()[0]
-  else:
-    raise Exception("Today's trading URL not found!")
+def generate_csv(data):
+  try:
+    bs=BeautifulSoup(data, 'html.parser')
+    table_body=bs.find('tbody')
+    table_body=bs.find('tbody')
+    rows = table_body.find_all('tr')
+    csv_rows = []
+    for row in rows:
+      cols=row.find_all('td')
+      cols=[x.text.strip().replace('\r\n', ' ') for x in cols]
+      csv_rows.append(cols)
+    with open(TEMP_TRADING_CSV_FILE, "w") as f:
+      wr = csv.writer(f)
+      wr.writerows(csv_rows)
+  except Exception as error:
+    raise Exception("Today's trading table not found!")
 
 def create_message(sender, to, subject, message_text):
   message = MIMEText(message_text)
@@ -138,4 +144,3 @@ def lambda_handler(event, context):
   return {
     "status":200
   }
-

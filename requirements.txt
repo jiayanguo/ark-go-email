@@ -4,3 +4,4 @@ google-auth-oauthlib==0.4.0
 pytz==2020.4
 boto3==1.16.43
 oauth2client
+bs4
