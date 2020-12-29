@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 import base64
 import re
 import requests
-from datetime import date
+from datetime import date, datetime
 from pytz import timezone
 import boto3
 from oauth2client import client, tools, file
@@ -35,6 +35,7 @@ def main():
     if 'messages' in result:
       messageId = result['messages'][0]['id']
       data = get_message('me', messageId, service)
+      print(data)
       generate_csv(data)
       today = get_date()
       upload_to_s3(OBJECT_KEY_PATTERN.format(today=today))
@@ -106,8 +107,7 @@ def get_message(user_id, message_id, service):
 def generate_csv(data):
   try:
     bs=BeautifulSoup(data, 'html.parser')
-    table_body=bs.find('tbody')
-    table_body=bs.find('tbody')
+    table_body=bs.find('table')
     rows = table_body.find_all('tr')
     csv_rows = []
     for row in rows:
@@ -118,7 +118,7 @@ def generate_csv(data):
       wr = csv.writer(f)
       wr.writerows(csv_rows)
   except Exception as error:
-    raise Exception("Today's trading table not found!")
+    raise Exception("Today's trading table not found!" + str(error))
 
 def create_message(sender, to, subject, message_text):
   message = MIMEText(message_text)
