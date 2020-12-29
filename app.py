@@ -93,8 +93,12 @@ def get_message(user_id, message_id, service):
   try:
     message = service.users().messages().get(userId=user_id, id=message_id).execute()
     data = ''
-    for part in message['payload']['parts']:
-      data += base64.urlsafe_b64decode(part['body']['data']).decode("utf-8") + "\n"
+    print(message)
+    if 'parts' in message['payload']:
+      for part in message['payload']['parts']:
+        data += base64.urlsafe_b64decode(part['body']['data']).decode("utf-8") + "\n"
+    else:
+      date += base64.urlsafe_b64decode(message['payload']['body']['data']).decode("utf-8") + "\n"
     return data
   except Exception as error:
     raise error
