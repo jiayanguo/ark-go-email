@@ -20,7 +20,7 @@ import csv
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://mail.google.com/']
-# ARK_INVEST_QUERY="from:ark@arkinvest.com subject:ARK Investment Management Trading Information"
+# ARK_INVEST_QUERY="from:ARK Trading Desk <ark@ark-funds.com> subject:ARK Investment Management LLC - * - Daily Trade Information*"
 ARK_INVEST_QUERY=os.environ['EMAIL_QUERY']
 S3_BUCKET ="ark-fly"
 OBJECT_KEY_PATTERN="dailytradingtrans/{today}-trading.csv"
@@ -31,11 +31,10 @@ TEMP_TRADING_CSV_FILE="/tmp/trading.csv"
 def main():
   service = login()
   try:
-    result = get_messages(service, 'me')
+    result = list_messages(service, 'me')
     if 'messages' in result:
       messageId = result['messages'][0]['id']
       data = get_message('me', messageId, service)
-      print(data)
       generate_csv(data)
       today = get_date()
       upload_to_s3(OBJECT_KEY_PATTERN.format(today=today))
@@ -94,7 +93,6 @@ def get_message(user_id, message_id, service):
   try:
     message = service.users().messages().get(userId=user_id, id=message_id).execute()
     data = ''
-    print(message)
     if 'parts' in message['payload']:
       for part in message['payload']['parts']:
         data += base64.urlsafe_b64decode(part['body']['data']).decode("utf-8") + "\n"
@@ -107,13 +105,36 @@ def get_message(user_id, message_id, service):
 def generate_csv(data):
   try:
     bs=BeautifulSoup(data, 'html.parser')
-    table_body=bs.find('table')
-    rows = table_body.find_all('tr')
+    table_container=bs.find('td', attrs={'role':'modules-container'})
+    root_tables = table_container.find_all('table', class_=False)
     csv_rows = []
-    for row in rows:
-      cols=row.find_all('td')
-      cols=[x.text.strip().replace('\r\n', ' ') for x in cols]
-      csv_rows.append(cols)
+    csv_header = ['Fund', 'Date', 'Direction', 'Ticker', 'Company', 'Shares', '% of ETF']
+    csv_rows.append(csv_header)
+    for root_table in root_tables:
+      if root_table.find('tbody').find('table'):
+        tables = root_table.find_all('table')
+        etf = ''
+        trade_date = ''
+        for table in tables:
+          rows = table.find_all('tr')
+          for row in rows:
+            td = row.find_all('td')
+            if len(td) == 2:
+              etf = td[0].text.strip().split()[0]
+              trade_date = td[1].text.strip()
+              print(etf)
+            elif len(td) == 4:
+              print(etf)
+              cols=[x.text.strip().replace('\r\n', ' ') for x in td]
+              if cols[0] != 'Direction':
+                sharesAndPercentage = cols[3].split('|')
+                cols.pop(3)
+                cols.append(sharesAndPercentage[0].strip())
+                cols.append(sharesAndPercentage[1].strip())
+                cols.insert(0, trade_date)
+                cols.insert(0, etf)
+                csv_rows.append(cols)
+    print(csv_rows)
     with open(TEMP_TRADING_CSV_FILE, "w") as f:
       wr = csv.writer(f)
       wr.writerows(csv_rows)
@@ -139,7 +160,7 @@ def send_message(service, user_id, message):
     print('An error occurred: %s' % error)
     raise error
 
-def get_messages(service, user_id):
+def list_messages(service, user_id):
   try:
     return service.users().messages().list(userId=user_id, q=ARK_INVEST_QUERY).execute()
   except Exception as error:
