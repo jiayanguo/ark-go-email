@@ -122,9 +122,9 @@ def generate_csv(data):
             if len(td) == 2:
               etf = td[0].text.strip().split()[0]
               trade_date = td[1].text.strip()
-              print(etf)
+           
             elif len(td) == 4:
-              print(etf)
+    
               cols=[x.text.strip().replace('\r\n', ' ') for x in td]
               if cols[0] != 'Direction':
                 sharesAndPercentage = cols[3].split('|')
